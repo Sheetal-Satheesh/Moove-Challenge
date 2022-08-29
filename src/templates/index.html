@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+
+body {
+  background-color: #000000;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 1600 800'%3E%3Cg fill-opacity='0.5'%3E%3Cpolygon fill='%23280e02' points='1600 160 0 460 0 350 1600 50'/%3E%3Cpolygon fill='%23451204' points='1600 260 0 560 0 450 1600 150'/%3E%3Cpolygon fill='%23651305' points='1600 360 0 660 0 550 1600 250'/%3E%3Cpolygon fill='%23870f03' points='1600 460 0 760 0 650 1600 350'/%3E%3Cpolygon fill='%23A00' points='1600 800 0 800 0 750 1600 450'/%3E%3C/g%3E%3C/svg%3E");
+  background-attachment: fixed;
+  background-size: cover;
+}
+.flex-container {
+  display: flex;
+  flex-wrap: nowrap; 
+}
+
+.flex-container > div {
+  width: max-width;
+  margin: 10px;
+  text-align: center;
+  line-height: 75px;
+  font-size: 14px;
+}
+.header {
+  text-align: center;
+  background: black;
+  color: white;
+  height: 50px;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  font-size: 2.5rem;
+  margin-bottom: 2rem;
+}
+.contentWrapper {
+  width: 60%;
+  margin: 0 auto;
+  position: relative;
+}
+.__content {
+  background-color: white;
+  box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.2);
+  padding: 3.5rem 4rem;
+  margin-bottom: 10rem;
+  border-radius: 25px;
+}
+.actionBtn {
+  padding: 10px;
+  padding-left: 20px;
+  padding-right: 20px;
+  background-color: #d50c2f;
+  border: solid 1px #d50c2f;
+  border-radius: 1000px; 
+  color: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.form-submit-Btn {
+  background-color: #D50C2F !important;
+  color: white !important;
+  margin-right: 0;
+}
+.form-submit-Btn {
+  background-color: #D50C2F !important;
+  color: white !important;
+  margin-right: 0;
+}
+.actionBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+.btn {
+  width: 100%;
+  display: flex;
+  padding-top: 25px;
+  padding-bottom: 80px;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+</style>
+</head>
+<body onload="init()">
+<div class="header">Report Page</div>
+
+<div class="contentWrapper">
+  <section class="__content">
+    <form action="">
+      <div class="flex-container">
+        <div>
+          <label for="email">Enter your email</label>
+          <input type="email" id="email" pattern=".+@globex\.com" size="30" required></div>
+        <div>
+          <label for="start">Start date:</label>
+          <input type="date" id="start" name="trip-start">
+        </div>
+        <div>
+          <label for="start">End Date:</label>
+          <input type="date" id="end" name="trip-end">
+        </div>
+      </div>
+    </form>
+    <div class="btn">
+      <input type="submit" class="actionBtn form-submit-Btn" value="Submit" onclick="getReport()">
+    </div>    
+  </section>
+</div>
+</body>
+<script>
+  function init() {
+    console.log("Test Purpose");
+    let today = new Date();
+    let dd = today.getDate();
+    let mm = today.getMonth() + 1;
+    let yyyy = today.getFullYear();      
+    let dd_one = new Date(new Date().setDate(today.getDate() - 30))
+
+    document.getElementById("start").setAttribute("min", dd_one.toISOString().split('T')[0]);
+    document.getElementById("start").setAttribute("max", today.toISOString().split('T')[0]);
+    const input = document.getElementById('start')
+    
+
+    input.addEventListener('change', function() {
+      let start_date_val =  document.getElementById("start").value;
+      console.log(start_date_val);
+      document.getElementById("end").setAttribute("min", start_date_val);
+    }); 
+
+    document.getElementById("end").setAttribute("max", today.toISOString().split('T')[0])
+  }
+
+  function getReport() {
+    let start = document.getElementById("start").value;
+    let end = document.getElementById("end").value;
+    let email = document.getElementById("email").value;
+
+    let url = "/generate_report?" + new URLSearchParams({
+      startDate: start,
+      endDate: end,
+      email: email
+    });
+    console.log(url);
+    fetch(url);
+  }
+</script>
+</html>
