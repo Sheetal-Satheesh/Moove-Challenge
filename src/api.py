@@ -1,9 +1,9 @@
+import os
 from typing import List
 from flask import Flask, jsonify, render_template, request
 import datetime, json
 import db_init as di
 import requests
-import pandas as pd
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -82,7 +82,7 @@ def generate_report():
     email = str(args.get('email'))
     start_date = args.get('startDate')
     end_date = args.get('endDate')
-
+    print("db_path: ", db_path)
     conn = di.create_connection(db_path)
     res_trip = conn.execute("SELECT max(stop_time) FROM trips")
     max_end_time = datetime.datetime.strptime([result[0] for result in res_trip.fetchall()][0], '%Y-%m-%dT%H:%M:%S.%f%z') 
@@ -162,40 +162,35 @@ def generate_report():
         db_cursor.executemany("INSERT INTO driving_exception VALUES(?,?,?,?,?)", data_except)
         conn.commit()        
    
-    res_df = pd.read_sql_query("SELECT license,vehicle.device_id,start_time,stop_time,distance FROM vehicle,trips WHERE vehicle.device_id = trips.device_id",conn)
-    except_df = pd.read_sql_query("SELECT * From driving_exception",conn)
-
-    res_df['Harsh Acceleration'] = ''
-    res_df['Speeding'] = ''
-
-    for index in res_df.index:
+    res = conn.execute("SELECT license,vehicle.device_id,start_time,stop_time,distance FROM vehicle,trips WHERE vehicle.device_id = trips.device_id")
+    res_df = [list(result) for result in res.fetchall()]
+    exceptions = conn.execute("SELECT * From driving_exception")
+    except_df = [list(result) for result in exceptions.fetchall()]
+    di.close_connection(db_path)
+    
+    data_list = list()
+    for trip in res_df:
         counter_harsh_accerelation = 0
         counter_speeding = 0        
-        for ind in except_df.index:
-            if ((res_df['device_id'][index] == except_df['device_id'][ind]) and (except_df['rule_id'][ind] == "apUro_0nXOUmLV4SVlzK8Xw") and (res_df['start_time'][index] <= except_df['active_from'][ind]) and ((res_df['stop_time'][index] >= except_df['active_to'][ind]))):
+        for exception in except_df:
+            if ((trip[1] == exception[1]) and (exception[4] == "apUro_0nXOUmLV4SVlzK8Xw") and (trip[2] <= exception[2]) and (trip[3] >= exception[3])):
                 counter_harsh_accerelation = counter_harsh_accerelation + 1
-            if ((res_df['device_id'][index] == except_df['device_id'][ind]) and (except_df['rule_id'][ind] == "abHSbCv2PKUWKSSGJMoiBnQ") and (res_df['start_time'][index] <= except_df['active_from'][ind]) and ((res_df['stop_time'][index] >= except_df['active_to'][ind]))):
+            if ((trip[1] == exception[1]) and (exception[4] == "abHSbCv2PKUWKSSGJMoiBnQ") and (trip[2] <= exception[2]) and (trip[3] >= exception[3])):
                 counter_speeding = counter_speeding + 1
-        res_df.loc[index, 'Harsh Acceleration'] = counter_harsh_accerelation
-        res_df.loc[index, 'Speeding'] = counter_speeding        
-    
-    res_df.drop('device_id', axis=1, inplace = True)   
-    di.close_connection(db_path)
-
-    data_list = list()
-    for index in res_df.index:
         data = {
-            "licensePlate": res_df["license"][index],
-            "tripStart": res_df["start_time"][index],
-            "tripEnd": res_df["stop_time"][index],
-            "distance": res_df["distance"][index],
-            "harshAcceleration": res_df["Harsh Acceleration"][index],
-            "speeding": res_df["Speeding"][index]
+            "licensePlate": trip[0],
+            "tripStart": trip[2],
+            "tripEnd": trip[3],
+            "distance": trip[4],
+            "harshAcceleration": counter_harsh_accerelation,
+            "speeding": counter_speeding
         }
-        data_list.append(data)    
+        data_list.append(data)
+            
     return jsonify({"result":data_list})
 
-app.run()
+port = int(os.environ.get("PORT", 8000))
+app.run(host="0.0.0.0", port=port)
     
 
 

@@ -1,4 +1,6 @@
+from codecs import ignore_errors
 from dataclasses import dataclass
+import shutil
 import sqlite3, os
 from sqlite3 import Error
 
@@ -64,13 +66,15 @@ def main():
 
 
 def get_db_path():
-    cwdir = os.getcwd()
-    print("FLASK:", cwdir)
-    sqlpath = os.path.join(cwdir,"db", "moove_challenge.db")
+    sqlpath = os.path.join("db", "moove_challenge.db")
+    print("sqlpath:",sqlpath)
     return sqlpath
 
 
 if __name__ == '__main__':    
+    if os.path.isdir("db"):
+        shutil.rmtree("db", ignore_errors=False, onerror=None)
+    os.mkdir("db")
     main()
     close_connection(get_db_path())
     
