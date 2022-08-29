@@ -1,9 +1,10 @@
 import os
-from typing import List
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, render_template, request
 import datetime, json
 import db_init as di
 import requests
+import csv
+from email_sender import send_email
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -82,7 +83,7 @@ def generate_report():
     email = str(args.get('email'))
     start_date = args.get('startDate')
     end_date = args.get('endDate')
-    print("db_path: ", db_path)
+
     conn = di.create_connection(db_path)
     res_trip = conn.execute("SELECT max(stop_time) FROM trips")
     max_end_time = datetime.datetime.strptime([result[0] for result in res_trip.fetchall()][0], '%Y-%m-%dT%H:%M:%S.%f%z') 
@@ -92,10 +93,7 @@ def generate_report():
     max_active_to_data =  max_active_to.strftime('%Y-%m-%d')
         
 
-    if end_date >= max_end_time_data:
-        print("max_end_time_data",max_end_time_data)
-        print("end_date", end_date)
-        print("max_end_time", max_end_time)
+    if end_date >= max_end_time_data:        
         get_trips_data = {
             "method": "Get",
             "params": {
@@ -162,8 +160,15 @@ def generate_report():
         db_cursor.executemany("INSERT INTO driving_exception VALUES(?,?,?,?,?)", data_except)
         conn.commit()        
    
-    res = conn.execute("SELECT license,vehicle.device_id,start_time,stop_time,distance FROM vehicle,trips WHERE vehicle.device_id = trips.device_id")
+    query_string = f'''
+                SELECT license, vehicle.device_id, start_time, stop_time, distance FROM vehicle, trips 
+                    WHERE vehicle.device_id = trips.device_id AND
+                        (start_time BETWEEN '{start_date}' AND '{end_date}') AND
+                        (stop_time BETWEEN '{start_date}' AND '{end_date}')
+    '''
+    res = conn.execute(query_string)
     res_df = [list(result) for result in res.fetchall()]
+    
     exceptions = conn.execute("SELECT * From driving_exception")
     except_df = [list(result) for result in exceptions.fetchall()]
     di.close_connection(db_path)
@@ -177,17 +182,27 @@ def generate_report():
                 counter_harsh_accerelation = counter_harsh_accerelation + 1
             if ((trip[1] == exception[1]) and (exception[4] == "abHSbCv2PKUWKSSGJMoiBnQ") and (trip[2] <= exception[2]) and (trip[3] >= exception[3])):
                 counter_speeding = counter_speeding + 1
-        data = {
-            "licensePlate": trip[0],
-            "tripStart": trip[2],
-            "tripEnd": trip[3],
-            "distance": trip[4],
-            "harshAcceleration": counter_harsh_accerelation,
-            "speeding": counter_speeding
-        }
+        data = [
+            trip[0],
+            trip[2],
+            trip[3],
+            trip[4],
+            counter_harsh_accerelation,
+            counter_speeding
+        ]
         data_list.append(data)
+
+    fileName = "report.csv"
+
+    with open(fileName, 'w+') as output:
+        writer = csv.writer(output)
+        writer.writerow(["License Plate", "Trip Start Time", "Trip End Time", "Distance", "Harsh Acceleration", "Speeding"])
+        for tabLine in data_list:
+            writer.writerow([tabLine[0], tabLine[1], tabLine[2], tabLine[3], tabLine[4], tabLine[5]])
+
+    send_email(email, fileName)
             
-    return jsonify({"result":data_list})
+    return "Report Generated and Sent"
 
 port = int(os.environ.get("PORT", 8000))
 app.run(host="0.0.0.0", port=port)

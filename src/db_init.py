@@ -66,8 +66,7 @@ def main():
 
 
 def get_db_path():
-    sqlpath = os.path.join("db", "moove_challenge.db")
-    print("sqlpath:",sqlpath)
+    sqlpath = os.path.join("db", "moove_challenge.db")    
     return sqlpath
 
 
